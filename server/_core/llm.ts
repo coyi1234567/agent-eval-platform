@@ -209,14 +209,23 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+const resolveApiUrl = () => {
+  // 优先使用新配置的 LLM Base URL
+  if (ENV.llmBaseUrl) {
+    return ENV.llmBaseUrl.endsWith('/chat/completions') 
+      ? ENV.llmBaseUrl 
+      : `${ENV.llmBaseUrl.replace(/\/$/, "")}/chat/completions`;
+  }
+  
+  // 兼容旧配置
+  return ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
     ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+    : "https://api.openai.com/v1/chat/completions";
+};
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.llmApiKey && !ENV.forgeApiKey) {
+    throw new Error("LLM_API_KEY is not configured");
   }
 };
 
@@ -277,10 +286,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     output_schema,
     responseFormat,
     response_format,
+    maxTokens,
+    max_tokens,
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: ENV.llmModel || "gpt-4o",
     messages: messages.map(normalizeMessage),
   };
 
@@ -296,9 +307,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
+  if (maxTokens || max_tokens) {
+    payload.max_tokens = maxTokens || max_tokens;
+  } else {
+    // 默认值，根据模型可能需要调整，这里设为一个安全值
+    payload.max_tokens = 4096;
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({
@@ -312,21 +325,29 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const apiKey = ENV.llmApiKey || ENV.forgeApiKey;
+  const apiUrl = resolveApiUrl();
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      );
+    }
+
+    return (await response.json()) as InvokeResult;
+  } catch (error) {
+    console.error(`LLM Call Error to ${apiUrl}:`, error);
+    throw error;
   }
-
-  return (await response.json()) as InvokeResult;
 }

@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrl } from "./const";
 import DashboardLayout from "./components/DashboardLayout";
+import Login from "./pages/Login";
 
 // 页面组件
 import Dashboard from "./pages/Dashboard";
@@ -52,6 +53,9 @@ function DashboardRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
+      {/* 登录页面 */}
+      <Route path="/login" component={Login} />
+
       {/* 首页重定向到 Dashboard */}
       <Route path="/">
         <Redirect to="/dashboard" />

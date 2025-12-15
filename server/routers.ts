@@ -6,6 +6,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
 import { startEvaluation, EvalConfig } from "./evaluator";
+import { ENV } from "./_core/env";
+import { sdk } from "./_core/sdk";
 
 // 管理员权限检查
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -29,6 +31,41 @@ export const appRouter = router({
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    
+    // 本地登录 (仅在 AUTH_MODE=local 时可用)
+    login: publicProcedure
+      .input(z.object({ username: z.string(), password: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ENV.authMode !== 'local') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not in local auth mode' });
+        }
+
+        // 简单的硬编码管理员检查 (实际项目中建议使用更复杂的逻辑)
+        // 默认用户名 admin，密码由环境变量配置
+        if (input.username === 'admin' && input.password === ENV.localAdminPassword) {
+          const openId = 'local-admin-001';
+          
+          // 确保用户存在
+          await db.upsertUser({
+            openId,
+            name: 'Local Admin',
+            role: 'admin',
+            loginMethod: 'local',
+          });
+
+          // 生成 Session Token
+          const token = await sdk.createSessionToken(openId, { name: 'Local Admin' });
+          
+          // 设置 Cookie
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
+          
+          return { success: true };
+        }
+
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid credentials' });
+      }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

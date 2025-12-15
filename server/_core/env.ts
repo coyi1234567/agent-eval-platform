@@ -7,4 +7,16 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  
+  // LLM Configuration
+  llmBaseUrl: process.env.LLM_BASE_URL ?? "https://api.openai.com/v1",
+  llmApiKey: process.env.LLM_API_KEY ?? "",
+  llmModel: process.env.LLM_MODEL ?? "gpt-4o",
+  
+  // Security
+  encryptionKey: process.env.ENCRYPTION_KEY ?? "",
+  
+  // Auth
+  authMode: (process.env.AUTH_MODE ?? "oauth") as "oauth" | "local",
+  localAdminPassword: process.env.LOCAL_ADMIN_PASSWORD ?? "admin123",
 };
