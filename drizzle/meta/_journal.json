@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1765792120949,
+      "tag": "0000_purple_pixie",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1765792590620,
+      "tag": "0001_legal_azazel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765792700052,
+      "tag": "0002_typical_rick_jones",
+      "breakpoints": true
+    }
+  ]
+}
